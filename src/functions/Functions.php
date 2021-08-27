@@ -19,6 +19,8 @@
 
 namespace functions;
 
+use Prophecy\Exception\InvalidArgumentException;
+
 class Functions
 {
     /**
@@ -57,7 +59,9 @@ class Functions
      */
     public function sayHelloArgumentWrapper($arg): string
     {
-        // put your code here
+        if (!(is_bool($arg) || is_numeric($arg) || is_string($arg))) {
+            throw new \InvalidArgumentException('$arg is not: number, string or bool');
+        }
 
         return $this->sayHelloArgument($arg);
     }
@@ -91,6 +95,13 @@ class Functions
      */
     public function countArgumentsWrapper(): array
     {
-        // put your code here
+        $args = func_get_args();
+        foreach ($args as $arg) {
+            if (!is_string($arg)) {
+                throw new InvalidArgumentException("Some argument is not a string");
+            }
+        }
+
+        return $this->countArguments(...$args);
     }
 }
