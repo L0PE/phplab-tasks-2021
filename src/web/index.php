@@ -9,6 +9,15 @@ $airports = require './airports.php';
  * and apply filtering by First Airport Name Letter and/or Airport State
  * (see Filtering tasks 1 and 2 below)
  */
+if (filterByLetterValidator()) {
+        $airports = array_filter($airports, fn ($airport) =>
+            $airport['name'][0] === $_GET['filter_by_first_letter']);
+}
+
+if (filterByStateValidator()) {
+        $airports = array_filter($airports, fn ($airport) =>
+            $airport['state'] === $_GET['filter_by_state']);
+}
 
 // Sorting
 /**
@@ -16,6 +25,9 @@ $airports = require './airports.php';
  * and apply sorting
  * (see Sorting task below)
  */
+if (sortValidator()) {
+    $airports = array_sort($airports, $_GET['sort']);
+}
 
 // Pagination
 /**
@@ -23,6 +35,11 @@ $airports = require './airports.php';
  * and apply pagination logic
  * (see Pagination task below)
  */
+$limit = 5;
+list($pages, $currentPage, $offset) = getPaginationInfo($limit, count($airports));
+$airports = array_slice($airports, $offset, $limit);
+
+
 ?>
 <!doctype html>
 <html lang="en">
@@ -52,11 +69,11 @@ $airports = require './airports.php';
     <div class="alert alert-dark">
         Filter by first letter:
 
-        <?php foreach (getUniqueFirstLetters(require './airports.php') as $letter): ?>
-            <a href="#"><?= $letter ?></a>
+        <?php foreach (getUniqueFirstLetters(require './airports.php') as $letter) : ?>
+            <a href="<?=getFilterHref('filter_by_first_letter', $letter)?>"><?= $letter ?></a>
         <?php endforeach; ?>
 
-        <a href="/" class="float-right">Reset all filters</a>
+        <a href="<?=$_SERVER['PHP_SELF']?>" class="float-right">Reset all filters</a>
     </div>
 
     <!--
@@ -72,10 +89,10 @@ $airports = require './airports.php';
     <table class="table">
         <thead>
         <tr>
-            <th scope="col"><a href="#">Name</a></th>
-            <th scope="col"><a href="#">Code</a></th>
-            <th scope="col"><a href="#">State</a></th>
-            <th scope="col"><a href="#">City</a></th>
+            <th scope="col"><a href="<?=getSortHref('name', $currentPage)?>">Name</a></th>
+            <th scope="col"><a href="<?=getSortHref('code', $currentPage)?>">Code</a></th>
+            <th scope="col"><a href="<?=getSortHref('state', $currentPage)?>">State</a></th>
+            <th scope="col"><a href="<?=getSortHref('city', $currentPage)?>">City</a></th>
             <th scope="col">Address</th>
             <th scope="col">Timezone</th>
         </tr>
@@ -91,11 +108,11 @@ $airports = require './airports.php';
              - when you apply filter_by_state, than filter_by_first_letter (see Filtering task #1) is not reset
                i.e. if you have filter_by_first_letter set you can additionally use filter_by_state
         -->
-        <?php foreach ($airports as $airport): ?>
+        <?php foreach ($airports as $airport) : ?>
         <tr>
             <td><?= $airport['name'] ?></td>
             <td><?= $airport['code'] ?></td>
-            <td><a href="#"><?= $airport['state'] ?></a></td>
+            <td><a href="<?=getFilterHref('filter_by_state', $airport['state'])?>"><?= $airport['state'] ?></a></td>
             <td><?= $airport['city'] ?></td>
             <td><?= $airport['address'] ?></td>
             <td><?= $airport['timezone'] ?></td>
@@ -115,9 +132,7 @@ $airports = require './airports.php';
     -->
     <nav aria-label="Navigation">
         <ul class="pagination justify-content-center">
-            <li class="page-item active"><a class="page-link" href="#">1</a></li>
-            <li class="page-item"><a class="page-link" href="#">2</a></li>
-            <li class="page-item"><a class="page-link" href="#">3</a></li>
+            <?php printPagination($currentPage, $pages) ?>
         </ul>
     </nav>
 
