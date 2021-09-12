@@ -17,6 +17,7 @@
         "guzzlehttp/guzzle": "^6.2@dev",
         "symfony/dom-crawler": "^4.1@dev",
         "symfony/css-selector": "^4.1@dev",
-      "ext-curl": "*"
+      "ext-curl": "*",
+      "ext-pdo": "*"
     }
 }
