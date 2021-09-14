@@ -1,14 +1,24 @@
 <?php
 /**
  * Connect to DB
- */
+ *
+ * @var \PDO $pdo */
+require_once './pdo_ini.php';
+
+require_once './functions.php';
 
 /**
  * SELECT the list of unique first letters using https://www.w3resource.com/mysql/string-functions/mysql-left-function.php
  * and https://www.w3resource.com/sql/select-statement/queries-with-distinct.php
  * and set the result to $uniqueFirstLetters variable
  */
-$uniqueFirstLetters = ['A', 'B', 'C'];
+$uniqueFirstLetters = getUniqueFirstLetters($pdo);
+
+$orderStatement = '';
+$wereStatement = '';
+$filterByLetter = '';
+$filterByState = '';
+$sort = '';
 
 // Filtering
 /**
@@ -20,6 +30,18 @@ $uniqueFirstLetters = ['A', 'B', 'C'];
  * For filtering by state you will need to JOIN states table and check if states.name = A
  * where A - requested filter value
  */
+if (filterByLetterValidator()) {
+    $filterByLetter = $_GET['filter_by_first_letter'] . '%';
+    $wereStatement .= ' a.name LIKE :like';
+}
+
+if (filterByStateValidator()) {
+    if ($filterByLetter) {
+        $wereStatement .= ' AND';
+    }
+    $filterByState = $_GET['filter_by_state'];
+    $wereStatement .= ' s.name = :state_name';
+}
 
 // Sorting
 /**
@@ -30,6 +52,10 @@ $uniqueFirstLetters = ['A', 'B', 'C'];
  * For sorting use ORDER BY A
  * where A - requested filter value
  */
+if (sortValidator()) {
+    $sort = $_GET['sort'];
+    $orderStatement .= ' ORDER BY ' . $sort;
+}
 
 // Pagination
 /**
@@ -40,6 +66,17 @@ $uniqueFirstLetters = ['A', 'B', 'C'];
  * For pagination use LIMIT
  * To get the number of all airports matched by filter use COUNT(*) in the SELECT statement with all filters applied
  */
+//Get number of all airports
+$countQuery = getCountQuery($wereStatement);
+$sth = $pdo->prepare($countQuery);
+bindParameters($sth, $filterByLetter, $filterByState);
+$sth->execute();
+$total = $sth->fetchColumn();
+
+//Set limit
+$limit = 5;
+//Get number of pages, current page, and offset
+list($pages, $currentPage, $offset) = getPaginationInfo($total, $limit);
 
 /**
  * Build a SELECT query to DB with all filters / sorting / pagination
@@ -47,7 +84,11 @@ $uniqueFirstLetters = ['A', 'B', 'C'];
  *
  * For city_name and state_name fields you can use alias https://www.mysqltutorial.org/mysql-alias/
  */
-$airports = [];
+$airportsQuery = getAirportQuery($wereStatement, $orderStatement);
+$sth = $pdo->prepare($airportsQuery);
+bindParameters($sth, $filterByLetter, $filterByState, $limit, $offset);
+$sth->execute();
+$airports = $sth->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!doctype html>
 <html lang="en">
@@ -78,10 +119,10 @@ $airports = [];
         Filter by first letter:
 
         <?php foreach ($uniqueFirstLetters as $letter): ?>
-            <a href="#"><?= $letter ?></a>
+            <a href="<?=getFilterHref('filter_by_first_letter', $letter)?>"><?= $letter ?></a>
         <?php endforeach; ?>
 
-        <a href="/" class="float-right">Reset all filters</a>
+        <a href="<?=$_SERVER['PHP_SELF']?>" class="float-right">Reset all filters</a>
     </div>
 
     <!--
@@ -97,10 +138,10 @@ $airports = [];
     <table class="table">
         <thead>
         <tr>
-            <th scope="col"><a href="#">Name</a></th>
-            <th scope="col"><a href="#">Code</a></th>
-            <th scope="col"><a href="#">State</a></th>
-            <th scope="col"><a href="#">City</a></th>
+            <th scope="col"><a href="<?=getSortHref('name', $currentPage)?>">Name</a></th>
+            <th scope="col"><a href="<?=getSortHref('code', $currentPage)?>">Code</a></th>
+            <th scope="col"><a href="<?=getSortHref('state_name', $currentPage)?>">State</a></th>
+            <th scope="col"><a href="<?=getSortHref('city_name', $currentPage)?>">City</a></th>
             <th scope="col">Address</th>
             <th scope="col">Timezone</th>
         </tr>
@@ -120,7 +161,7 @@ $airports = [];
         <tr>
             <td><?= $airport['name'] ?></td>
             <td><?= $airport['code'] ?></td>
-            <td><a href="#"><?= $airport['state_name'] ?></a></td>
+            <td><a href="<?=getFilterHref('filter_by_state', $airport['state_name'])?>"><?= $airport['state_name'] ?></a></td>
             <td><?= $airport['city_name'] ?></td>
             <td><?= $airport['address'] ?></td>
             <td><?= $airport['timezone'] ?></td>
@@ -140,9 +181,7 @@ $airports = [];
     -->
     <nav aria-label="Navigation">
         <ul class="pagination justify-content-center">
-            <li class="page-item active"><a class="page-link" href="#">1</a></li>
-            <li class="page-item"><a class="page-link" href="#">2</a></li>
-            <li class="page-item"><a class="page-link" href="#">3</a></li>
+            <?php printPagination($currentPage, $pages) ?>
         </ul>
     </nav>
 
